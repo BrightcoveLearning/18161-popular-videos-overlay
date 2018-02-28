@@ -1,0 +1,336 @@
+<!doctype html>
+<html>
+
+<head>
+	<meta charset="UTF-8">
+	<title>Popular Videos Overlay</title>
+
+	<style>
+	  body {
+	    margin: 1em 2em;
+	    font-family: sans-serif;
+	  }
+	  h2 {
+	    font-size: 1.1em;
+	  }
+	  button {
+	    padding: .5em;
+	  }
+	  pre {
+	    background-color: #F1EFEE;
+	    border-left: .5em solid #636363;
+	    box-shadow: 5px 5px 10px rgba(192, 192, 192, 1.000);
+	    font-family: Hack, monospace;
+	    font-size: .8em;
+	    padding: 1em;
+	  }
+	  /* styling for the video thumbnails */
+	  .video-thumbnail {
+	    margin: 0;
+	    padding: 0;
+	    width: 190px;
+	    height: 107px;
+	    cursor: pointer;
+	  }
+	  /*override some of the default overlay styling*/
+	  div.vjs-overlay.vjs-overlay-top {
+	    width: 100%;
+	    left: 0;
+	    margin-left: -10px;
+	  }
+	</style>
+</head>
+
+<body>
+
+	<h1>Popular Videos Overlay</h1>
+
+			<div style="position: relative; display: block; max-width: 640px;">
+				<div style="padding-top: 56.25%;">
+					<video id="myPlayerID"
+					  data-video-id="4454620113001"
+						data-account="1752604059001"
+						data-player="SyE24N4Of"
+						data-embed="default"
+						data-application-id
+						class="video-js"
+						controls
+						style="position: absolute; top: 0px; right: 0px; bottom: 0px; left: 0px; width: 100%; height: 100%;"></video>
+				  <script src="//players.brightcove.net/1752604059001/SyE24N4Of_default/index.min.js"></script>
+				</div>
+			</div>
+
+			<!-- styles and script for overlay plugin -->
+	    <link href="//players.brightcove.net/videojs-overlay/1/videojs-overlay.css" rel='stylesheet'>
+	    <script src="//players.brightcove.net/videojs-overlay/1/videojs-overlay.min.js"></script>
+	<p>
+	  <strong>Analytics API request:</strong>
+	</p>
+	<pre id="apiRequest"></pre>
+	<p>
+	  <strong>Analytics Response data</strong>
+	</p>
+	<pre id="responseData"></pre>
+
+  <!-- custom script -->
+  <script type="text/javascript">
+	/**
+			 * We'll define this variable later as a function,
+			 * but it needs to be in the page scope so that
+			 * DOM elements can access it
+			 */
+			var loadAndPlay;
+
+			videojs("myPlayerID").ready(function() {
+				'use strict';
+				var player = this,
+						apiRequest = document.getElementById('apiRequest'),
+						responseData = document.getElementById('responseData'),
+						// This var needs to be in the function scope because
+						// multiple functions will access it
+						videoData = [],
+				    // Build options needed for Analytics API request
+				    options = {},
+				    baseURL = "https://analytics.api.brightcove.com/v1/data",
+				    accountId = "1752604059001";
+
+					options.proxyURL = "https://solutions.brightcove.com/bcls/bcls-proxy/brightcove-learning-proxy-v2.php";
+					options.requestType = "GET";
+
+				/**
+				 * Loads and plays a video
+				 * This function called when thumbnails in the overlay are clicked
+				 * @param {integer} idx the index of the video object in the videoData array
+				 */
+				loadAndPlay = function(idx) {
+					player.catalog.load(videoData[idx]);
+					player.play();
+				}
+
+				/**
+				 * Create an element
+				 *
+				 * @param  {string} type - the element type
+				 * @param  {object} attributes - attributes to add to the element
+				 * @return {HTMLElement} the HTML element
+				 */
+				function createEl(type, attributes) {
+					var el,
+						attr;
+					el = document.createElement(type);
+					if (attributes !== null) {
+						for (attr in attributes) {
+							el.setAttribute(attr, attributes[attr]);
+						}
+						return el;
+					}
+				}
+
+				/**
+				 * Adds text content to an element
+				 * @param {HTMLElement} el the element
+				 * @param {string} str the text content
+				 */
+				function addText(el, str) {
+					el.appendChild(document.createTextNode(str));
+				}
+
+				/**
+				 * Extract video ids from Analytics API response
+				 * @param {array} aapiData the data from the Analytics API
+				 * @return {array} videoIds array of video ids
+				 */
+				function extractVideoIds(aapiData) {
+					var i,
+						iMax = aapiData.items.length,
+						videoIds = [];
+					for (i = 0; i < iMax; i++) {
+						if (aapiData.items[i].video !== null) {
+							videoIds.push(aapiData.items[i].video);
+						}
+					}
+					return videoIds;
+				}
+
+				/**
+				 * Get video objects
+				 * @param {array} videoIds array of video ids
+				 * @return {array} videoData array of video objects
+				 */
+				function getVideoData(videoIds, callback) {
+					var i = 0,
+						iMax = videoIds.length;
+
+					/**
+					 * Makes catalog calls for all video ids in the array
+					 */
+					getVideo();
+
+					function getVideo() {
+						if (i < iMax) {
+							player.catalog.getVideo(videoIds[i], pushData);
+						} else {
+							callback(videoData);
+						}
+
+					}
+					/**
+					 * Callback for the catalog calls
+					 * Pushes the returned data object into an array
+					 * @param {string} error error returned if the call fails
+					 * @parap {object} video the video object
+					 */
+					function pushData(error, video) {
+						videoData.push(video);
+						i++;
+						getVideo();
+					}
+				}
+
+				/**
+				 * Create the html for the overlay
+				 * @param {array} videoData array of video objects
+				 * @return {HTMLElement} videoList the div element containing the overlay
+				 */
+				function createVideoList(videoData) {
+					var i,
+						iMax = videoData.length,
+						videoList = createEl('div', {
+							id: 'videoList'
+						}),
+						videoHeader = createEl('h1', {
+							style: 'color:#666600;font-size: 2em;margin-bottom:.5em'
+						}),
+						videoWrapper = createEl('div'),
+						thumbnailLink,
+						thumbnailImage;
+					addText(videoHeader, 'Popular Videos');
+					videoList.appendChild(videoHeader);
+					videoList.appendChild(videoWrapper);
+					for (i = 0; i < iMax; i++) {
+						thumbnailLink = createEl('a', {
+							href: 'javascript:loadAndPlay(' + i + ')'
+						})
+						thumbnailImage = createEl('img', {
+							class: 'video-thumbnail',
+							src: videoData[i].thumbnail
+						});
+						videoWrapper.appendChild(thumbnailLink);
+						thumbnailLink.appendChild(thumbnailImage);
+					}
+					return videoList;
+				}
+
+				/**
+				 * Sets up the data for the API request
+				 */
+				function setRequestData() {
+					var endPoint = '',
+						// Get the epoch time in milliseconds 24 hours ago
+						// 12 hours in milliseconds = 1000 * 24 * 60 * 60 = 86,400,000
+						yesterday = new Date().valueOf() - 86400000,
+						requestData = {};
+					// Note that we don't have to set the "to date" to now because that's the default
+					endPoint = '?accounts=' + accountId + '&dimensions=video&sort=-video_view&limit=6&from=' + yesterday;
+          options.url = baseURL + endPoint;
+					// Display request URL
+					apiRequest.textContent = options.url;
+				}
+
+				// +++ Makes actual call for data +++
+/**
+    * send API request to the proxy
+    * @param  {Object} options for the request
+    * @param  {String} options.url the full API request URL
+    * @param  {String="GET","POST","PATCH","PUT","DELETE"} requestData [options.requestType="GET"] HTTP type for the request
+    * @param  {String} options.proxyURL proxyURL to send the request to
+    * @param  {String} options.client_id client id for the account (default is in the proxy)
+    * @param  {String} options.client_secret client secret for the account (default is in the proxy)
+    * @param  {JSON} [options.requestBody] Data to be sent in the request body in the form of a JSON string
+    * @param  {Function} [callback] callback function that will process the response
+    */
+		function makeRequest(options, callback) {
+		  var httpRequest = new XMLHttpRequest(),
+		      response,
+		      requestParams,
+		      dataString,
+		      proxyURL = options.proxyURL,
+		      // response handler
+		      getResponse = function() {
+		        try {
+		          if (httpRequest.readyState === 4) {
+		            if (httpRequest.status >= 200 && httpRequest.status < 300) {
+		              response = httpRequest.responseText;
+		              // some API requests return '{null}' for empty responses - breaks JSON.parse
+		              if (response === "{null}") {
+		                response = null;
+		              }
+		              // return the response
+		              callback(response);
+		            } else {
+		              alert(
+		                "There was a problem with the request. Request returned " +
+		                httpRequest.status
+		              );
+		            }
+		          }
+		        } catch (e) {
+		          alert("Caught Exception: " + e);
+		        }
+		      };
+		   /**
+		     * set up request data
+		       * the proxy used here takes the following request body:
+		       * JSON.strinify(options)
+		       */
+		  // set response handler
+		  httpRequest.onreadystatechange = getResponse;
+		  // open the request
+		  httpRequest.open("POST", proxyURL);
+		  // set headers if there is a set header line, remove it
+		  // open and send request
+		  httpRequest.send(JSON.stringify(options));
+		}
+
+				/**
+				 * Acts as a controller for the rest of the script
+				 */
+				 player.one('loadstart', function() {
+					 var requestData = {},
+						 videoIds = [],
+						 videoList,
+						 overlayDiv = createEl('div'),
+						 JSONanalyticsData;
+
+					 // Set up data for Analytics API request
+					 setRequestData();
+					 // +++ Make the Analytics API request +++
+					 makeRequest(options, function (analyticsData) {
+					   // Convert response string into JSON
+					   JSONanalyticsData = JSON.parse(analyticsData);
+						 // Display response data
+						 responseData.textContent = JSON.stringify(JSONanalyticsData, null, '  ');
+						 // Extract the video ids into an array
+						 videoIds = extractVideoIds(JSONanalyticsData);
+						 // Use the catalog to get the video data
+						 getVideoData(videoIds, function() {
+							 // Generate the HTML for the overlay
+							 videoList = createVideoList(videoData);
+							 // Add the overlay
+							 overlayDiv.appendChild(videoList);
+							 player.overlay({
+								 overlays: [{
+									 align: 'top',
+									 content: overlayDiv,
+									 start: 'pause',
+									 end: 'play'
+								 }]
+							 });
+						 });
+					 });
+				 });
+			});
+  </script>
+
+</body>
+</html>
