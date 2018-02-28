@@ -1,18 +1,18 @@
 videojs.registerPlugin('popularVideosOverlay', function() {
     'use strict';
-		var player = this,
-				apiRequest = document.getElementById('apiRequest'),
-				responseData = document.getElementById('responseData'),
-				// This var needs to be in the function scope because
-				// multiple functions will access it
-				videoData = [],
-		    // Build options needed for Analytics API request
-		    options = {},
-		    baseURL = "https://analytics.api.brightcove.com/v1/data",
-		    accountId = "1752604059001";
+    var player = this,
+        apiRequest = document.getElementById('apiRequest'),
+        responseData = document.getElementById('responseData'),
+        // This var needs to be in the function scope because
+        // multiple functions will access it
+    		videoData = [],
+        // Build options needed for Analytics API request
+        options = {},
+        baseURL = "https://analytics.api.brightcove.com/v1/data",
+        accountId = "1752604059001";
 
-			options.proxyURL = "https://solutions.brightcove.com/bcls/bcls-proxy/brightcove-learning-proxy-v2.php";
-			options.requestType = "GET";
+      options.proxyURL = "https://solutions.brightcove.com/bcls/bcls-proxy/brightcove-learning-proxy-v2.php";
+      options.requestType = "GET";
 
       /**
        * Loads and plays a video
